@@ -35,8 +35,6 @@ class Player(Bot):
         self.preflop_num_calls = 0
         self.preflop_num_folds = 0
         
-        self.bluff_probability = 0.1
-        
         # 0.3 - 0.45 - 
         # 0.45 - 0.6
         # 0.6 - 0.75
@@ -70,8 +68,6 @@ class Player(Bot):
         self.is_big_blind = big_blind
 
         self.round_num = round_num
-        self.bluffing = False
-        pass
     
     def do_monte_carlo(self, hole, num_iterations, street, board=None, known=None):
         """
@@ -169,18 +165,9 @@ class Player(Bot):
         opp_cards = previous_state.hands[1-active]  # opponent's cards or [] if not revealed
         
         #### LOGIC ####
-        # print("delta", my_delta)
         if street == 0 and my_delta > 0:
-            # print("Folded")
             self.preflop_num_folds += 1
-            
-        if self.bluffing:
-            if my_delta > 0:
-                print("Yess")
-            else:
-                print("Noo")
 
-        pass
 
     def get_action(self, game_state, round_state, active):
         '''
@@ -244,36 +231,29 @@ class Player(Bot):
             # else:
             #     raise_amount = int(my_pip + continue_cost + 0.4 * (pot_total + continue_cost))
             
-            if (strength < 0.4 and (not self.is_big_blind or continue_cost > 3)):
-                if random.random() < self.bluff_probability:
-                    self.bluffing = True
-                    strength = 0.7
-                else:
-                    return FoldAction()
-            raise_amount = int(my_pip + continue_cost + (strength * 0.8 - 0.1) * (pot_total + continue_cost))
+            if strength < 0.4 and (not self.is_big_blind or continue_cost > 3):
+                return FoldAction()
+            raise_amount = int(my_pip + continue_cost + 0.4 * strength * (pot_total + continue_cost))
 
-            # opp_continue_cost = raise_amount - continue_cost - my_pip
+            opp_continue_cost = raise_amount - continue_cost - my_pip
             
-            # opp_pot_odds = opp_continue_cost / (pot_total + raise_amount - my_pip + opp_continue_cost)
+            opp_pot_odds = opp_continue_cost / (pot_total + raise_amount - my_pip + opp_continue_cost)
             
-            # perc_hands_less_than_pot_odds = sum([6 if k[2] == 'o' and k[0] == k[1] else 12 if k[2] == 'o' else 4 for k, v in self.strengths.items() if v < opp_pot_odds]) / 1326
+            perc_hands_less_than_pot_odds = sum([6 if k[2] == 'o' and k[0] == k[1] else 12 if k[2] == 'o' else 4 for k, v in self.strengths.items() if v < opp_pot_odds]) / 1326
             # print(opp_pot_odds, perc_hands_less_than_pot_odds)
             
-            # perc_fold = self.preflop_num_folds / self.round_num
+            perc_fold = self.preflop_num_folds / self.round_num
             # print(perc_fold)
-            # if self.round_num > 200 and perc_fold < 0.2:
-            #     print(1)
-            #     exploit_excess_folding = perc_fold / 3
+            if self.round_num > 200 and perc_fold > 0.3:
+                print(1)
+                exploit_excess_folding = perc_fold / 3
 
+        elif street == 3:
+            raise_amount = int(my_pip + continue_cost + 0.6 * strength * (pot_total + continue_cost))
+        elif street == 4:
+            raise_amount = int(my_pip + continue_cost + 0.8 * strength * (pot_total + continue_cost))
         else:
-            if self.bluffing:
-                if strength < 0.6:
-                    strength = 0.7
-                else:
-                    print("got better")
             raise_amount = int(my_pip + continue_cost + strength * (pot_total + continue_cost))
-
-
         
         if RaiseAction in legal_actions:
             raise_amount = max([min_raise, raise_amount])
